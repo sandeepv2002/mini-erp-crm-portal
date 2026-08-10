@@ -44,7 +44,7 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     return res.json({
       success: true,
-      data: data.map(row => ({
+      data: data.map((row: any) => ({
         ...row,
         customer: { name: row.customer_name, mobile: row.customer_mobile, business_name: row.customer_business_name }
       })),
@@ -94,7 +94,7 @@ router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
           address: cData.customer_address,
           gst_number: cData.customer_gst_number
         },
-        items: items.map(it => ({
+        items: items.map((it: any) => ({
           ...it,
           product_name_snapshot: it.product_snapshot?.name,
           sku_snapshot: it.product_snapshot?.sku,
@@ -264,7 +264,7 @@ router.get('/:id/pdf', authenticateToken, async (req: AuthenticatedRequest, res:
     const challan = challans[0];
     const { rows: items } = await query('SELECT * FROM challan_items WHERE challan_id = $1', [id]);
 
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalQuantity = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
     generateChallanPDF(
       {
@@ -276,7 +276,7 @@ router.get('/:id/pdf', authenticateToken, async (req: AuthenticatedRequest, res:
         customerAddress: challan.customer_address,
         businessName: challan.customer_business_name,
         gstNumber: challan.customer_gst_number,
-        items: items.map((it) => ({
+        items: items.map((it: any) => ({
           productName: it.product_snapshot?.name || 'Unknown',
           sku: it.product_snapshot?.sku || 'Unknown',
           unitPrice: Number(it.unit_price),

@@ -35,7 +35,7 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     return res.json({
       success: true,
-      data: data.map(row => ({
+      data: data.map((row: any) => ({
         ...row,
         product: { name: row.product_name, sku: row.product_sku }
       })),
