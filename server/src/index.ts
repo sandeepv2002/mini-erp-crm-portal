@@ -16,6 +16,24 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    status: 'online',
+    service: 'Verve ERP & CRM Backend REST API',
+    message: 'Welcome to the Verve ERP + CRM Backend API',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/login',
+      customers: '/api/customers',
+      products: '/api/products',
+      stockMovements: '/api/stock-movements',
+      challans: '/api/challans',
+    },
+    version: '1.0.0',
+  });
+});
+
 // API Health Check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
