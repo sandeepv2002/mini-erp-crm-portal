@@ -69,7 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       'sales@erpcrm.com': { role: 'sales', name: 'Sales Representative' },
       'warehouse@erpcrm.com': { role: 'warehouse', name: 'Warehouse Manager' },
       'accounts@erpcrm.com': { role: 'accounts', name: 'Accounts Specialist' },
+      'admin@verveerp.com': { role: 'admin', name: 'System Admin' },
+      'sales@verveerp.com': { role: 'sales', name: 'Sales Representative' },
+      'warehouse@verveerp.com': { role: 'warehouse', name: 'Warehouse Manager' },
+      'accounts@verveerp.com': { role: 'accounts', name: 'Accounts Specialist' },
     };
+
 
     if (demoRoles[lower]) {
       const demo = demoRoles[lower];

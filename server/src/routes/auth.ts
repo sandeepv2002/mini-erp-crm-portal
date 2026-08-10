@@ -23,7 +23,12 @@ const DEMO_USERS: Record<string, { role: UserRole; fullName: string }> = {
   'sales@erpcrm.com': { role: 'sales', fullName: 'Sales Representative' },
   'warehouse@erpcrm.com': { role: 'warehouse', fullName: 'Warehouse Manager' },
   'accounts@erpcrm.com': { role: 'accounts', fullName: 'Accounts Specialist' },
+  'admin@verveerp.com': { role: 'admin', fullName: 'System Admin' },
+  'sales@verveerp.com': { role: 'sales', fullName: 'Sales Representative' },
+  'warehouse@verveerp.com': { role: 'warehouse', fullName: 'Warehouse Manager' },
+  'accounts@verveerp.com': { role: 'accounts', fullName: 'Accounts Specialist' },
 };
+
 
 // POST /api/auth/login
 router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
