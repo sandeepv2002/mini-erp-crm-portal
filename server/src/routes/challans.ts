@@ -244,6 +244,24 @@ router.post('/:id/confirm', authenticateToken, requireRole(['admin', 'sales', 'w
   }
 });
 
+// POST /api/challans/:id/cancel (Cancel draft challan)
+router.post('/:id/cancel', authenticateToken, requireRole(['admin', 'sales']), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { rows: challans } = await query('SELECT * FROM sales_challans WHERE id = $1', [id]);
+    if (challans.length === 0) {
+      return res.status(404).json({ success: false, error: 'Sales challan not found' });
+    }
+    if (challans[0].status !== 'Draft') {
+      return res.status(400).json({ success: false, error: 'Only Draft challans can be cancelled' });
+    }
+    const { rows: updated } = await query("UPDATE sales_challans SET status = 'Cancelled' WHERE id = $1 RETURNING *", [id]);
+    return res.json({ success: true, message: 'Challan cancelled successfully', data: updated[0] });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: 'Server error', details: error.message });
+  }
+});
+
 // GET /api/challans/:id/pdf (Export Challan as PDF Invoice)
 router.get('/:id/pdf', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {

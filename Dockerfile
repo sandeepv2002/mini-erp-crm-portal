@@ -1,17 +1,23 @@
+# Multi-stage Dockerfile for Mini ERP + CRM Backend
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-COPY package*.json ./
+COPY server/package*.json ./
 RUN npm ci
 
-COPY . .
+COPY server/ ./
 RUN npm run build
 
-FROM nginx:alpine AS runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=5000
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY server/package*.json ./
+RUN npm ci --only=production
 
-EXPOSE 80
+COPY --from=builder /app/dist ./dist
+COPY database/ ./database/
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 5000
+CMD ["node", "dist/index.js"]

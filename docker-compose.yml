@@ -1,45 +1,41 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database Service
   postgres:
-    image: postgres:15-alpine
-    container_name: erp_postgres
-    restart: always
+    image: postgres:16-alpine
+    container_name: verve_erp_db
     environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password_2026
-      POSTGRES_DB: erp_crm_db
+      POSTGRES_DB: verve_erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d
+      - ./database/setup_and_seed.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # Express TypeScript Backend Service
   backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: erp_backend
-    restart: always
-    ports:
-      - "5000:5000"
-    environment:
-      PORT: 5000
-      JWT_SECRET: verve-erp-crm-super-secret-jwt-key-2026
-      NODE_ENV: production
-    depends_on:
-      - postgres
-
-  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: erp_frontend
-    restart: always
+    container_name: verve_erp_backend
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/verve_erp
+      JWT_SECRET: verve-erp-crm-super-secret-jwt-key-2026
     ports:
-      - "80:80"
+      - "5000:5000"
     depends_on:
-      - backend
+      postgres:
+        condition: service_healthy
 
 volumes:
   pgdata:

@@ -203,7 +203,8 @@ router.post('/:id/notes', authenticateToken, requireRole(['admin', 'sales', 'acc
     }
 
     const existingNotes = rows[0].notes;
-    const updatedNotes = `${existingNotes ? existingNotes + '\n\n' : ''}[${new Date().toLocaleDateString()} - ${req.user?.fullName} (${req.user?.role})]: ${noteText}`;
+    const author = req.user?.fullName || req.user?.email || 'Staff';
+    const updatedNotes = `${existingNotes ? existingNotes + '\n\n' : ''}[${new Date().toLocaleDateString()} - ${author} (${req.user?.role})]: ${noteText}`;
     
     const { rows: updatedRows } = await query('UPDATE customers SET notes = $1 WHERE id = $2 RETURNING notes', [updatedNotes, id]);
 
