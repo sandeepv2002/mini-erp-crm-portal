@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../db';
+import { query } from '../db';
 import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -26,39 +26,44 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' });
-
+    let sql = 'SELECT * FROM products WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) FROM products WHERE 1=1';
+    const params: any[] = [];
+    
     if (search.trim()) {
-      query = query.or(`name.ilike.%${search.trim()}%,sku.ilike.%${search.trim()}%`);
+      const searchParam = `%${search.trim()}%`;
+      sql += ` AND (name ILIKE $${params.length + 1} OR sku ILIKE $${params.length + 1})`;
+      countSql += ` AND (name ILIKE $${params.length + 1} OR sku ILIKE $${params.length + 1})`;
+      params.push(searchParam);
     }
 
     if (category !== 'all') {
-      query = query.eq('category', category);
+      sql += ` AND category = $${params.length + 1}`;
+      countSql += ` AND category = $${params.length + 1}`;
+      params.push(category);
     }
-
-    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-
-    const { data, count, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ success: false, error: 'Database error fetching products', details: error.message });
-    }
-
-    let result = data || [];
+    
     if (lowStockOnly) {
-      result = result.filter((p: any) => p.current_stock <= p.min_stock_alert);
+      sql += ` AND current_stock <= min_stock_alert`;
+      countSql += ` AND current_stock <= min_stock_alert`;
     }
+
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    
+    const queryParams = [...params, limit, offset];
+    
+    const { rows: data } = await query(sql, queryParams);
+    const { rows: countRows } = await query(countSql, params);
+    const count = parseInt(countRows[0].count);
 
     return res.json({
       success: true,
-      data: result,
+      data: data || [],
       pagination: {
         page,
         limit,
-        totalItems: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
       },
     });
   } catch (error: any) {
@@ -70,11 +75,11 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-    if (error || !data) {
+    const { rows } = await query('SELECT * FROM products WHERE id = $1', [id]);
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: rows[0] });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
@@ -93,24 +98,24 @@ router.post('/', authenticateToken, requireRole(['admin', 'warehouse']), async (
     }
 
     const payload = parseResult.data;
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        ...payload,
-        sku: payload.sku.toUpperCase(),
-        created_by: req.user?.userId?.startsWith('demo') ? null : req.user?.userId,
-      })
-      .select('*')
-      .single();
+    const sku = payload.sku.toUpperCase();
+    
+    const insertSql = `
+      INSERT INTO products (name, sku, category, unit_price, current_stock, min_stock_alert, location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    const params = [payload.name, sku, payload.category, payload.unit_price, payload.current_stock, payload.min_stock_alert, payload.location];
 
-    if (error) {
-      if (error.code === '23505') {
+    try {
+      const { rows } = await query(insertSql, params);
+      return res.status(201).json({ success: true, data: rows[0] });
+    } catch (dbError: any) {
+      if (dbError.code === '23505') {
         return res.status(400).json({ success: false, error: 'A product with this SKU already exists.' });
       }
-      return res.status(400).json({ success: false, error: 'Failed to create product', details: error.message });
+      throw dbError;
     }
-
-    return res.status(201).json({ success: true, data });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
@@ -129,24 +134,36 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'warehouse']), async
       });
     }
 
-    const updateData = { ...parseResult.data };
-    if (updateData.sku) updateData.sku = updateData.sku.toUpperCase();
+    const fields = parseResult.data;
+    if (fields.sku) fields.sku = fields.sku.toUpperCase();
 
-    const { data, error } = await supabase
-      .from('products')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('*')
-      .single();
+    const setKeys = Object.keys(fields);
+    if (setKeys.length === 0) return res.json({ success: true });
 
-    if (error) {
-      return res.status(400).json({ success: false, error: 'Failed to update product', details: error.message });
+    const setClauses = setKeys.map((key, index) => `${key} = $${index + 1}`);
+    const values = Object.values(fields);
+    values.push(new Date().toISOString()); // updated_at
+    values.push(id); // id for WHERE
+
+    const updateSql = `
+      UPDATE products 
+      SET ${setClauses.join(', ')}, updated_at = $${values.length - 1} 
+      WHERE id = $${values.length} 
+      RETURNING *
+    `;
+
+    try {
+      const { rows } = await query(updateSql, values);
+      if (rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Product not found' });
+      }
+      return res.json({ success: true, data: rows[0] });
+    } catch (dbError: any) {
+      if (dbError.code === '23505') {
+        return res.status(400).json({ success: false, error: 'A product with this SKU already exists.' });
+      }
+      throw dbError;
     }
-
-    return res.json({ success: true, data });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
@@ -156,12 +173,15 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'warehouse']), async
 router.delete('/:id', authenticateToken, requireRole(['admin', 'warehouse']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) {
-      return res.status(400).json({ success: false, error: 'Failed to delete product. It may be referenced by challans or stock logs.', details: error.message });
+    const { rowCount } = await query('DELETE FROM products WHERE id = $1', [id]);
+    if (rowCount === 0) {
+       return res.status(404).json({ success: false, error: 'Product not found' });
     }
     return res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error: any) {
+    if (error.code === '23503') { // foreign key violation
+      return res.status(400).json({ success: false, error: 'Failed to delete product. It is referenced by challans or stock logs.' });
+    }
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
 });

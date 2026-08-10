@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../db';
+import { query } from '../db';
 import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -11,8 +11,8 @@ const customerSchema = z.object({
   email: z.string().email().optional().nullable(),
   business_name: z.string().optional().nullable(),
   gst_number: z.string().optional().nullable(),
-  customer_type: z.enum(['retail', 'wholesale', 'distributor']),
-  status: z.enum(['lead', 'active', 'inactive']),
+  customer_type: z.enum(['Retail', 'Wholesale', 'Distributor']),
+  status: z.enum(['Lead', 'Active', 'Inactive']),
   address: z.string().optional().nullable(),
   follow_up_date: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -33,29 +33,36 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('customers')
-      .select('*', { count: 'exact' });
-
+    let sql = 'SELECT * FROM customers WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) FROM customers WHERE 1=1';
+    const params: any[] = [];
+    
     if (search.trim()) {
-      query = query.or(`name.ilike.%${search.trim()}%,mobile.ilike.%${search.trim()}%,business_name.ilike.%${search.trim()}%`);
+      const searchParam = `%${search.trim()}%`;
+      sql += ` AND (name ILIKE $${params.length + 1} OR mobile ILIKE $${params.length + 1} OR business_name ILIKE $${params.length + 1})`;
+      countSql += ` AND (name ILIKE $${params.length + 1} OR mobile ILIKE $${params.length + 1} OR business_name ILIKE $${params.length + 1})`;
+      params.push(searchParam);
     }
 
     if (type !== 'all') {
-      query = query.eq('customer_type', type);
+      sql += ` AND customer_type = $${params.length + 1}`;
+      countSql += ` AND customer_type = $${params.length + 1}`;
+      params.push(type);
     }
 
     if (status !== 'all') {
-      query = query.eq('status', status);
+      sql += ` AND status = $${params.length + 1}`;
+      countSql += ` AND status = $${params.length + 1}`;
+      params.push(status);
     }
 
-    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-
-    const { data, count, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ success: false, error: 'Database error fetching customers', details: error.message });
-    }
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    
+    const queryParams = [...params, limit, offset];
+    
+    const { rows: data } = await query(sql, queryParams);
+    const { rows: countRows } = await query(countSql, params);
+    const count = parseInt(countRows[0].count);
 
     return res.json({
       success: true,
@@ -63,8 +70,8 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
       pagination: {
         page,
         limit,
-        totalItems: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
       },
     });
   } catch (error: any) {
@@ -72,34 +79,20 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
   }
 });
 
-// GET /api/customers/:id (Customer Detail Page with follow-up notes)
+// GET /api/customers/:id (Customer Detail Page)
 router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data: customer, error: custError } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const { rows } = await query('SELECT * FROM customers WHERE id = $1', [id]);
 
-    if (custError || !customer) {
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Customer not found' });
     }
 
-    // Fetch follow-up notes if customer_notes table exists or load from customer.notes
-    const { data: notes } = await supabase
-      .from('customer_notes')
-      .select('*')
-      .eq('customer_id', id)
-      .order('created_at', { ascending: false });
-
     return res.json({
       success: true,
-      data: {
-        ...customer,
-        follow_up_notes: notes || [],
-      },
+      data: rows[0],
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
@@ -118,21 +111,18 @@ router.post('/', authenticateToken, requireRole(['admin', 'sales', 'accounts']),
       });
     }
 
-    const payload = parseResult.data;
-    const { data, error } = await supabase
-      .from('customers')
-      .insert({
-        ...payload,
-        created_by: req.user?.userId?.startsWith('demo') ? null : req.user?.userId,
-      })
-      .select('*')
-      .single();
+    const p = parseResult.data;
+    
+    const insertSql = `
+      INSERT INTO customers (name, mobile, email, business_name, gst_number, customer_type, address, status, follow_up_date, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `;
+    const params = [p.name, p.mobile, p.email, p.business_name, p.gst_number, p.customer_type, p.address, p.status, p.follow_up_date, p.notes];
 
-    if (error) {
-      return res.status(400).json({ success: false, error: 'Failed to create customer', details: error.message });
-    }
+    const { rows } = await query(insertSql, params);
 
-    return res.status(201).json({ success: true, data });
+    return res.status(201).json({ success: true, data: rows[0] });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
@@ -151,21 +141,29 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sales', 'accounts']
       });
     }
 
-    const { data, error } = await supabase
-      .from('customers')
-      .update({
-        ...parseResult.data,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('*')
-      .single();
+    const fields = parseResult.data;
+    const setKeys = Object.keys(fields);
+    if (setKeys.length === 0) return res.json({ success: true });
 
-    if (error) {
-      return res.status(400).json({ success: false, error: 'Failed to update customer', details: error.message });
+    const setClauses = setKeys.map((key, index) => `${key} = $${index + 1}`);
+    const values = Object.values(fields);
+    values.push(new Date().toISOString()); // updated_at
+    values.push(id); // id for WHERE
+
+    const updateSql = `
+      UPDATE customers 
+      SET ${setClauses.join(', ')}, updated_at = $${values.length - 1} 
+      WHERE id = $${values.length} 
+      RETURNING *
+    `;
+
+    const { rows } = await query(updateSql, values);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
     }
 
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: rows[0] });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });
   }
@@ -175,13 +173,15 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sales', 'accounts']
 router.delete('/:id', authenticateToken, requireRole(['admin', 'sales']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { error } = await supabase.from('customers').delete().eq('id', id);
-    if (error) {
-      return res.status(400).json({ success: false, error: 'Failed to delete customer', details: error.message });
+    const { rowCount } = await query('DELETE FROM customers WHERE id = $1', [id]);
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
     }
+    
     return res.json({ success: true, message: 'Customer deleted successfully' });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: 'Server error', details: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to delete customer', details: error.message });
   }
 });
 
@@ -196,29 +196,21 @@ router.post('/:id/notes', authenticateToken, requireRole(['admin', 'sales', 'acc
 
     const noteText = parseResult.data.note;
 
-    // Insert into customer_notes table if available or append to customer notes
-    const { data: note, error: noteError } = await supabase
-      .from('customer_notes')
-      .insert({
-        customer_id: id,
-        note: noteText,
-        author_name: req.user?.fullName || 'Staff Member',
-        author_role: req.user?.role || 'sales',
-      })
-      .select('*')
-      .single();
-
-    if (noteError) {
-      // Fallback: update main customer notes field with appended text
-      const { data: cust } = await supabase.from('customers').select('notes').eq('id', id).single();
-      const updatedNotes = `${cust?.notes ? cust.notes + '\n\n' : ''}[${new Date().toLocaleDateString()} - ${req.user?.fullName} (${req.user?.role})]: ${noteText}`;
-      await supabase.from('customers').update({ notes: updatedNotes }).eq('id', id);
+    // Append to customer notes
+    const { rows } = await query('SELECT notes FROM customers WHERE id = $1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
     }
+
+    const existingNotes = rows[0].notes;
+    const updatedNotes = `${existingNotes ? existingNotes + '\n\n' : ''}[${new Date().toLocaleDateString()} - ${req.user?.fullName} (${req.user?.role})]: ${noteText}`;
+    
+    const { rows: updatedRows } = await query('UPDATE customers SET notes = $1 WHERE id = $2 RETURNING notes', [updatedNotes, id]);
 
     return res.status(201).json({
       success: true,
       message: 'Follow-up note added successfully',
-      data: note || { note: noteText, created_at: new Date().toISOString() },
+      data: { note: noteText, notes: updatedRows[0].notes },
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: 'Server error', details: error.message });

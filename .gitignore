@@ -13,6 +13,8 @@ dist-ssr
 
 server/node_modules
 server/dist
+client/node_modules
+client/dist
 repo.json
 
 .vscode/*
@@ -25,5 +27,6 @@ repo.json
 *.sln
 *.sw?
 .env
-.env.local
-
+.env.*
+server/.env
+client/.env

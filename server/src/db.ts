@@ -1,9 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ocbovnvvdmxdejcswmca.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jYm92bnZ2ZG14ZGVqY3N3bWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNjE1NTAsImV4cCI6MjEwMTkzNzU1MH0.0xGPQeUCsf-2_WktKYhRsodDQbGGkB6UC0tzabaxgIE';
+const isCloud = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost') && !process.env.DATABASE_URL.includes('127.0.0.1');
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/verve_erp',
+  ssl: isCloud ? { rejectUnauthorized: false } : undefined,
+});
+
+// Helper to run query with parameters
+export const query = (text: string, params?: any[]) => pool.query(text, params);
+
+export default pool;
