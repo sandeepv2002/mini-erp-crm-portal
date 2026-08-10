@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Space, Tag, Modal, Form, Select, InputNumber, message } from 'antd';
 import { PlusOutlined, SwapOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../api';
 
 const { Option } = Select;
 const { Search } = Input;
@@ -22,7 +22,7 @@ const Inventory: React.FC = () => {
   const fetchProducts = async (page = 1, searchQuery = search) => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/products`, {
+      const res = await api.get(`/api/products`, {
         params: { page, limit: pagination.pageSize, search: searchQuery }
       });
       setData(res.data.data);
@@ -48,7 +48,7 @@ const Inventory: React.FC = () => {
 
   const handleAddProduct = async (values: any) => {
     try {
-      await axios.post('http://localhost:5000/api/products', values);
+      await api.post('/api/products', values);
       message.success('Product added successfully');
       setIsProductModalVisible(false);
       productForm.resetFields();
@@ -60,7 +60,7 @@ const Inventory: React.FC = () => {
 
   const handleStockAdjustment = async (values: any) => {
     try {
-      await axios.post('http://localhost:5000/api/stock-movements', {
+      await api.post('/api/stock-movements', {
         product_id: selectedProduct.id,
         quantity: values.quantity,
         movement_type: values.movement_type,

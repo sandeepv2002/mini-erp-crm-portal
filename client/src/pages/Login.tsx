@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Form, Input, Typography, Divider, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
@@ -22,7 +22,7 @@ const Login: React.FC = () => {
   const handleLogin = async (values: any) => {
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await api.post('/api/auth/login', {
         email: values.email,
         password: values.password
       });

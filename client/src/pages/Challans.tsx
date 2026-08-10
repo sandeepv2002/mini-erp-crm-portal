@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, Modal, Form, Select, InputNumber, message, Popconfirm } from 'antd';
 import { PlusOutlined, FilePdfOutlined, CheckCircleOutlined, DeleteOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import moment from 'moment';
+import api, { API_BASE_URL } from '../api';
 
 const { Option } = Select;
 
@@ -21,7 +21,7 @@ const Challans: React.FC = () => {
   const fetchChallans = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/challans`, {
+      const res = await api.get(`/api/challans`, {
         params: { page, limit: pagination.pageSize }
       });
       setData(res.data.data);
@@ -40,8 +40,8 @@ const Challans: React.FC = () => {
   const fetchOptions = async () => {
     try {
       const [cRes, pRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/customers?limit=1000'),
-        axios.get('http://localhost:5000/api/products?limit=1000')
+        api.get('/api/customers?limit=1000'),
+        api.get('/api/products?limit=1000')
       ]);
       setCustomers(cRes.data.data);
       setProducts(pRes.data.data);
@@ -61,7 +61,7 @@ const Challans: React.FC = () => {
 
   const handleConfirm = async (id: string) => {
     try {
-      await axios.post(`http://localhost:5000/api/challans/${id}/confirm`);
+      await api.post(`/api/challans/${id}/confirm`);
       message.success('Challan confirmed successfully! Stock updated.');
       fetchChallans(pagination.current);
     } catch (error: any) {
@@ -70,7 +70,9 @@ const Challans: React.FC = () => {
   };
 
   const handleDownloadPDF = (id: string) => {
-    window.open(`http://localhost:5000/api/challans/${id}/pdf`, '_blank');
+    const token = localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/challans/${id}/pdf${token ? `?token=${token}` : ''}`;
+    window.open(url, '_blank');
   };
 
   const openCreateModal = () => {
@@ -115,7 +117,7 @@ const Challans: React.FC = () => {
         items
       };
 
-      await axios.post('http://localhost:5000/api/challans', payload);
+      await api.post('/api/challans', payload);
       message.success('Challan created successfully');
       setIsModalVisible(false);
       fetchChallans(pagination.current);

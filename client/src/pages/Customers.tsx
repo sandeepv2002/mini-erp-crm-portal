@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Space, Tag, Modal, Form, Select, DatePicker, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import moment from 'moment';
+import api from '../api';
 
 const { Option } = Select;
 const { Search } = Input;
@@ -19,7 +19,7 @@ const Customers: React.FC = () => {
   const fetchCustomers = async (page = 1, filtersObj = filters) => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/customers`, {
+      const res = await api.get(`/api/customers`, {
         params: {
           page,
           limit: pagination.pageSize,
@@ -56,7 +56,7 @@ const Customers: React.FC = () => {
         follow_up_date: values.follow_up_date ? values.follow_up_date.format('YYYY-MM-DD') : null
       };
       
-      await axios.post('http://localhost:5000/api/customers', payload);
+      await api.post('/api/customers', payload);
       message.success('Customer added successfully');
       setIsModalVisible(false);
       form.resetFields();

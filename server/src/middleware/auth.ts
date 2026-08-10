@@ -22,7 +22,7 @@ export function generateToken(payload: AuthPayload): string {
 
 export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  const token = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null) || (req.query.token as string);
 
   if (!token) {
     return res.status(401).json({

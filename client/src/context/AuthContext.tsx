@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
 import { message } from 'antd';
+import api from '../api';
 
 export type UserRole = 'admin' | 'sales' | 'warehouse' | 'accounts';
 
@@ -28,9 +28,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      axios
-        .get('http://localhost:5000/api/auth/me')
+      api
+        .get('/api/auth/me')
         .then((res) => {
           setUser(res.data.data.user);
         })
@@ -50,14 +49,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('token', newToken);
     setToken(newToken);
     setUser(newUser);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   return (

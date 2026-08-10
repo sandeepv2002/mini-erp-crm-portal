@@ -6,7 +6,7 @@ import {
   FileTextOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../api';
 
 const { Title } = Typography;
 
@@ -18,17 +18,17 @@ const Dashboard: React.FC = () => {
     followUps: 0
   });
   
-  const [lowStockItems, setLowStockItems] = useState([]);
-  const [recentChallans, setRecentChallans] = useState([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [recentChallans, setRecentChallans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const [custRes, prodRes, chalRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/customers?limit=1000'),
-          axios.get('http://localhost:5000/api/products?limit=1000'),
-          axios.get('http://localhost:5000/api/challans?limit=5')
+          api.get('/api/customers?limit=1000'),
+          api.get('/api/products?limit=1000'),
+          api.get('/api/challans?limit=5')
         ]);
 
         const customers = custRes.data.data;
@@ -98,37 +98,37 @@ const Dashboard: React.FC = () => {
               title="Active Customers"
               value={stats.activeCustomers}
               prefix={<TeamOutlined style={{ color: '#1890ff' }} />}
-              loading={loading}
             />
           </Card>
         </Col>
+        
         <Col xs={24} sm={12} md={6}>
           <Card bordered={false} style={{ background: '#fff1f0' }}>
             <Statistic
-              title="Low Stock Alerts"
+              title="Low Stock Items"
               value={stats.lowStock}
               prefix={<WarningOutlined style={{ color: '#f5222d' }} />}
-              loading={loading}
+              valueStyle={{ color: '#cf1322' }}
             />
           </Card>
         </Col>
+        
         <Col xs={24} sm={12} md={6}>
           <Card bordered={false} style={{ background: '#fffbe6' }}>
             <Statistic
-              title="Draft Challans"
+              title="Pending Draft Challans"
               value={stats.draftChallans}
               prefix={<FileTextOutlined style={{ color: '#faad14' }} />}
-              loading={loading}
             />
           </Card>
         </Col>
+
         <Col xs={24} sm={12} md={6}>
           <Card bordered={false} style={{ background: '#f6ffed' }}>
             <Statistic
-              title="Upcoming Follow-ups"
+              title="Upcoming Follow Ups"
               value={stats.followUps}
               prefix={<CalendarOutlined style={{ color: '#52c41a' }} />}
-              loading={loading}
             />
           </Card>
         </Col>
@@ -136,24 +136,25 @@ const Dashboard: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>
-          <Card title="Low Stock Items" bordered={false}>
+          <Card title="Low Stock Alerts" size="small">
             <Table 
-              dataSource={lowStockItems} 
               columns={lowStockColumns} 
-              rowKey="id"
-              pagination={false}
+              dataSource={lowStockItems} 
+              rowKey="id" 
+              pagination={false} 
               loading={loading}
               size="small"
             />
           </Card>
         </Col>
+
         <Col xs={24} lg={12}>
-          <Card title="Recent Sales Challans" bordered={false}>
+          <Card title="Recent Sales Challans" size="small">
             <Table 
-              dataSource={recentChallans} 
               columns={challanColumns} 
-              rowKey="id"
-              pagination={false}
+              dataSource={recentChallans} 
+              rowKey="id" 
+              pagination={false} 
               loading={loading}
               size="small"
             />
