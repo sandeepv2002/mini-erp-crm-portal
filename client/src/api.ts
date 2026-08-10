@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+// Default to live Render production backend if not explicitly set
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'https://mini-erp-crm-portal-za5a.onrender.com'
+).replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
