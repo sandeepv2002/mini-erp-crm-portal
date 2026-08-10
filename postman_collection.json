@@ -1,0 +1,163 @@
+{
+  "info": {
+    "name": "Mini ERP + CRM Portal REST API",
+    "description": "Postman Collection for Full Stack Mini ERP + CRM Portal backend APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@erpcrm.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login (Sales)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sales@erpcrm.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Customer CRM",
+      "item": [
+        {
+          "name": "Get Customers (Filtered & Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=1&limit=10&search=&type=all&status=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "type", "value": "all" },
+                { "key": "status", "value": "all" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Vikram Enterprise\",\n  \"mobile\": \"9876500112\",\n  \"email\": \"vikram@enterprise.in\",\n  \"business_name\": \"Vikram Wholesale\",\n  \"gst_number\": \"07VIKRAM1234Z5\",\n  \"customer_type\": \"wholesale\",\n  \"status\": \"lead\",\n  \"address\": \"Industrial Area, Phase 2, Jaipur\",\n  \"follow_up_date\": \"2026-08-15\",\n  \"notes\": \"Interested in bulk orders.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+          }
+        },
+        {
+          "name": "Add Follow-Up Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Spoke on phone. Confirmed requirement for 100 units next week.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/{{customerId}}/notes", "host": ["{{baseUrl}}"], "path": ["customers", "{{customerId}}", "notes"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Product & Inventory",
+      "item": [
+        {
+          "name": "Get Products (Catalog)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smart Watch Series X\",\n  \"sku\": \"SMARTWATCH-BLK-01\",\n  \"category\": \"Electronics\",\n  \"unit_price\": 2999.00,\n  \"current_stock\": 50,\n  \"min_stock_alert\": 10,\n  \"location\": \"Warehouse A - Shelf 5\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Sales Challans",
+      "item": [
+        {
+          "name": "Get Sales Challans List",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/challans", "host": ["{{baseUrl}}"], "path": ["challans"] }
+          }
+        },
+        {
+          "name": "Confirm Sales Challan (Triggers Stock Reduction)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/challans/{{challanId}}/confirm", "host": ["{{baseUrl}}"], "path": ["challans", "{{challanId}}", "confirm"] }
+          }
+        },
+        {
+          "name": "Download PDF Invoice",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/challans/{{challanId}}/pdf", "host": ["{{baseUrl}}"], "path": ["challans", "{{challanId}}", "pdf"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "YOUR_JWT_TOKEN_HERE" },
+    { "key": "customerId", "value": "c1111111-1111-1111-1111-111111111111" },
+    { "key": "challanId", "value": "SAMPLE_CHALLAN_ID" }
+  ]
+}
